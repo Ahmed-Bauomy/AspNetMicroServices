@@ -19,7 +19,7 @@ namespace Discount.Grpc.Extensions
             {
                 var service = scope.ServiceProvider;
                 var configuration = service.GetRequiredService<IConfiguration>();
-                var logger = service.GetRequiredService<ILogger>();
+                var logger = service.GetRequiredService<ILogger<TContext>>();
 
                 try
                 {
