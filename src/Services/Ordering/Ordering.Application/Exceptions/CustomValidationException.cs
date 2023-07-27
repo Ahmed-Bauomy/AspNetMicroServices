@@ -21,5 +21,19 @@ namespace Ordering.Application.Exceptions
             Errors = failures.GroupBy(f => f.PropertyName, f => f.ErrorMessage)
                              .ToDictionary(failureGroup => failureGroup.Key, failureGroup => failureGroup.ToArray());
         }
+
+        public override string ToString()
+        {
+            var error = Message + "\n";
+            Errors.Values.ToList().ForEach(item =>
+            {
+                item.ToList().ForEach(t =>
+                {
+                    error += t + "\n";
+                });
+            });
+            error += base.ToString();
+            return error;
+        }
     }
 }

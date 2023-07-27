@@ -19,6 +19,12 @@ namespace Ordering.Infrastructure.Persistence
 
         public virtual DbSet<Order> Orders { get; set; }
 
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Order>().Property(o => o.TotalPrice).HasColumnType("decimal(18,4)");
+            base.OnModelCreating(modelBuilder);
+        }
+
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             foreach(var entry in ChangeTracker.Entries<EntityBase>())
