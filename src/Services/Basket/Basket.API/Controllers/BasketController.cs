@@ -1,6 +1,9 @@
-﻿using Basket.API.Entities;
+﻿using AutoMapper;
+using Basket.API.Entities;
 using Basket.API.GrpcServices;
 using Basket.API.Repositroy;
+using EventBus.Messages.Event;
+using MassTransit;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -17,11 +20,15 @@ namespace Basket.API.Controllers
     {
         private readonly IBasketRepository _basketRepositroy;
         private readonly DiscountGrpcService _discountGrpcService;
+        private readonly IPublishEndpoint _publishEndpoint;
+        private readonly IMapper _mapper;
 
-        public BasketController(IBasketRepository basketRepositroy,DiscountGrpcService discountGrpcService)
+        public BasketController(IBasketRepository basketRepositroy, DiscountGrpcService discountGrpcService, IPublishEndpoint publishEndpoint, IMapper mapper)
         {
             _basketRepositroy = basketRepositroy ?? throw new ArgumentNullException(nameof(basketRepositroy));
             _discountGrpcService = discountGrpcService ?? throw new ArgumentNullException(nameof(discountGrpcService));
+            _publishEndpoint = publishEndpoint ?? throw new ArgumentNullException(nameof(publishEndpoint));
+            _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         }
 
         [Route("{userName}",Name ="GetBasket")]
@@ -58,6 +65,28 @@ namespace Basket.API.Controllers
 
             await _basketRepositroy.DeleteBasket(userName);
             return Ok();
+        }
+        [Route("[action]")]
+        [HttpPost]
+        [ProducesResponseType((int)HttpStatusCode.Accepted)]
+        [ProducesResponseType((int)HttpStatusCode.NotFound)]
+        public async Task<IActionResult> Checkout([FromBody]BasketCheckout basketCheckout)
+        {
+            // get current basket from db
+            var basket = await _basketRepositroy.GetBasket(basketCheckout.UserName);
+            if(basket == null)
+            {
+                return NotFound();
+            }
+            // create basketcheckoutevent with toatalPrice updated
+            var basketCheckoutEvent = _mapper.Map<BasketCheckoutEvent>(basketCheckout);
+            basketCheckoutEvent.TotalPrice = basket.TotalPrice;
+            // publish basket checkout event
+            await _publishEndpoint.Publish(basketCheckoutEvent);
+
+            // remove basket
+            await _basketRepositroy.DeleteBasket(basket.UserName);
+            return Accepted();
         }
     }
 }
